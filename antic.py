@@ -215,7 +215,7 @@ def main(page: ft.Page):
             options=[ft.dropdown.Option(screen) for screen in screens]
         )
         timezone_dropdown = ft.Dropdown(
-            label="Timezone",
+            label="Часовой пояс",
             width=350,
             border_color=ft.Colors.WHITE,
             border_radius=20,
