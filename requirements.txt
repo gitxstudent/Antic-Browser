@@ -1,3 +1,4 @@
 flet
 pytz
 playwright
+requests
