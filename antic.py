@@ -6,83 +6,130 @@ import json
 import asyncio
 from playwright.async_api import async_playwright
 
-screens = ("800×600", "960×540", "1024×768", "1152×864", "1280×720", "1280×768", "1280×800", "1280×1024", "1366×768", "1408×792", "1440×900", "1400×1050", "1440×1080", "1536×864", "1600×900", "1600×1024", "1600×1200", "1680×1050", "1920×1080", "1920×1200", "2048×1152", "2560×1080", "2560×1440", "3440×1440")
-languages = ("en-US", "en-GB", "fr-FR", "ru-RU", "es-ES", "pl-PL", "pt-PT", "nl-NL", "zh-CN")
-timezones = pytz.common_timezones
-user_agent = requests.get("https://raw.githubusercontent.com/microlinkhq/top-user-agents/refs/heads/master/src/index.json").json()[0]
+SCREENS = ("800×600", "960×540", "1024×768", "1152×864", "1280×720", "1280×768", "1280×800", "1280×1024", "1366×768", "1408×792", "1440×900", "1400×1050", "1440×1080", "1536×864", "1600×900", "1600×1024", "1600×1200", "1680×1050", "1920×1080", "1920×1200", "2048×1152", "2560×1080", "2560×1440", "3440×1440")
+LANGUAGES = ("en-US", "en-GB", "fr-FR", "ru-RU", "es-ES", "pl-PL", "pt-PT", "nl-NL", "zh-CN")
+TIMEZONES = pytz.common_timezones
+USER_AGENT = requests.get("https://raw.githubusercontent.com/microlinkhq/top-user-agents/refs/heads/master/src/index.json").json()[0]
+
+async def save_cookies(context, profile):
+    cookies = await context.cookies()
+
+    for cookie in cookies:
+        cookie.pop("sameSite", None)
+
+    with open(f"cookies/{profile}", "w", encoding="utf-8") as f:
+        json.dump(obj=cookies, fp=f, indent=4)
+
+async def run(user_agent: str, height: int, width: int, timezone: str, lang: str, proxy: str | bool, cookies: dict | bool, webgl: bool, vendor: str, cpu: int, ram: int, is_touch: bool, profile: str) -> None:
+    async with async_playwright() as p:
+        args = [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-web-security",
+                "--ignore-certificate-errors",
+                "--disable-infobars",
+                "--disable-extensions",
+                "--disable-blink-features=AutomationControlled",
+            ]
+        
+        if webgl is False:
+            args.append("--disable-webgl")
+        
+        if proxy:
+            if "@" in proxy:
+                splitted = proxy.split("@")
+
+                server = splitted[1]
+                username = splitted[0].split(":")[0]
+                password = splitted[0].split(":")[1]
+            else:
+                splitted = proxy.split(":")
+
+                server = splitted[0] + ":" + splitted[1]
+                username = splitted[2]
+                password = splitted[3]
+
+            proxy_settings = {
+                "server": server,
+                "username": username,
+                "password": password
+            }
+
+            browser = await p.chromium.launch(headless=False, proxy=proxy_settings, args=args)
+        else:
+            browser = await p.chromium.launch(headless=False, args=args)
+
+        context = await browser.new_context(
+            user_agent=user_agent,
+            viewport={"width": width, "height": height},
+            locale=lang,
+            timezone_id=timezone,
+            has_touch=is_touch
+        )
+
+        await context.add_init_script("""
+            Object.defineProperty(navigator, 'vendor', {
+                    get: function() {
+                        return '""" + vendor + """';
+                    }
+                });
+        """)
+
+        await context.add_init_script("""
+            Object.defineProperty(navigator, 'hardwareConcurrency', {
+                    get: function() {
+                        return """ + str(cpu) + """;
+                    }
+                });
+        """)
+
+        await context.add_init_script("""
+            Object.defineProperty(navigator, 'deviceMemory', {
+                    get: function() {
+                        return """ + str(ram) + """;
+                    }
+                });
+        """)
+
+        if not os.path.isfile(f"cookies/{profile}") and cookies:
+            with open(cookies, "r", encoding="utf-8") as f:
+                try:
+                    cookies_parsed = json.loads(f.read())
+                except json.decoder.JSONDecodeError:
+                    cookies_parsed = ()
+        elif os.path.exists(f"cookies/{profile}"):
+            with open(f"cookies/{profile}", "r", encoding="utf-8") as f:
+                try:
+                    cookies_parsed = json.loads(f.read())
+                except json.decoder.JSONDecodeError:
+                    cookies_parsed = ()
+        else:
+            cookies_parsed = ()
+
+        for cookie in cookies_parsed:
+            cookie["sameSite"] = "Strict"
+            await context.add_cookies([cookie])
+        
+        page = await context.new_page()
+
+        await page.evaluate("navigator.__proto__.webdriver = undefined;")
+        
+        await page.goto("about:blank")
+
+        try:
+            await page.wait_for_event("close", timeout=0)
+        finally:
+            await save_cookies(context, profile)
 
 def main(page: ft.Page):
     page.title = "Antic Browser"
     page.adaptive = True
 
-    async def run(user_agent: str, height: int, width: int, timezone: str, lang: str, proxy: str | bool, cookies: dict | bool, webgl: bool) -> None:
-        async with async_playwright() as p:
-            args = [
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                    "--disable-web-security",
-                    "--ignore-certificate-errors",
-                    "--disable-infobars",
-                    "--disable-extensions",
-                    "--disable-blink-features=AutomationControlled",
-                ]
-            
-            if webgl is False:
-                args.append("--disable-webgl")
-            
-            if proxy:
-                if "@" in proxy:
-                    splitted = proxy.split("@")
-
-                    server = splitted[1]
-                    username = splitted[0].split(":")[0]
-                    password = splitted[0].split(":")[1]
-                else:
-                    splitted = proxy.split(":")
-
-                    server = splitted[0] + ":" + splitted[1]
-                    username = splitted[2]
-                    password = splitted[3]
-
-                proxy_settings = {
-                    "server": server,
-                    "username": username,
-                    "password": password
-                }
-
-                browser = await p.chromium.launch(headless=False, proxy=proxy_settings, args=args)
-            else:
-                browser = await p.chromium.launch(headless=False, args=args)
-
-            context = await browser.new_context(
-                user_agent=user_agent,
-                viewport={"width": width, "height": height},
-                locale=lang,
-                timezone_id=timezone,
-            )
-
-            if cookies:
-                with open(cookies, "r", encoding="utf-8") as f:
-                    cookies_parsed = json.loads(f.read())
-
-                for cookie in cookies_parsed:
-                    cookie["sameSite"] = "Strict"
-                    await context.add_cookies([cookie])
-            
-            page = await context.new_page()
-
-            await page.evaluate("navigator.__proto__.webdriver = undefined;")
-            
-            await page.goto("https://iphey.com/leaks")
-
-            while True:
-                pass
-
     def run_browser(profile: str):
         with open(f"config/{profile}", "r", encoding="utf-8") as f:
             config = json.load(f)
             
-        asyncio.run(run(config["user-agent"], config["screen_height"], config["screen_width"], config["timezone"], config["lang"], config["proxy"], config["cookies"], config["webgl"]))
+        asyncio.run(run(config["user-agent"], config["screen_height"], config["screen_width"], config["timezone"], config["lang"], config["proxy"], config["cookies"], config["webgl"], config["vendor"], config["cpu"], config["ram"], config["is_touch"], profile))
 
     def delete_profile(profile: str):
         os.remove(f"config/{profile}")
@@ -94,8 +141,15 @@ def main(page: ft.Page):
         configs = []
 
         for cfg in os.listdir("config"):
+            with open(f"config/{cfg}", "r", encoding="utf-8") as f:
+                config = json.load(f)
+
             configs.append(ft.Container(bgcolor=ft.Colors.WHITE24, padding=20, border_radius=20, content=ft.Row([
-                ft.Text(cfg.rsplit(".", 1)[0], size=20, weight=ft.FontWeight.W_600),
+                ft.Row([
+                    ft.Text(cfg.rsplit(".", 1)[0], size=20, weight=ft.FontWeight.W_600),
+                    ft.FilledButton(text=config["lang"], icon="language", bgcolor=ft.Colors.WHITE24, color=ft.Colors.WHITE, icon_color=ft.Colors.WHITE, style=ft.ButtonStyle(padding=20)),
+                    ft.FilledButton(text=config["timezone"], icon="schedule", bgcolor=ft.Colors.WHITE24, color=ft.Colors.WHITE, icon_color=ft.Colors.WHITE, style=ft.ButtonStyle(padding=20))
+                ]),
                 ft.Row([
                     ft.IconButton(icon=ft.Icons.DELETE, icon_color=ft.Colors.WHITE70, on_click=lambda _: delete_profile(cfg)),
                     ft.FilledButton(text="Старт", icon="play_arrow", style=ft.ButtonStyle(padding=20), on_click=lambda _: run_browser(cfg))
@@ -129,12 +183,16 @@ def main(page: ft.Page):
     def get_proxy():
         proxies = []
         
-        with open("proxies.txt", "r", encoding="utf-8") as f:
-            for line in f.read().split("\n"):
-                if len(line) > 0:
-                    proxies.append(line)
+        try:
+            with open("proxies.txt", "r", encoding="utf-8") as f:
+                for line in f.read().split("\n"):
+                    if len(line) > 0:
+                        proxies.append(line)
 
-        return proxies
+            return proxies
+        except FileNotFoundError:
+            os.close(os.open("proxies.txt", os.O_CREAT))
+            return []
 
     def get_proxies_content():
         proxies = []
@@ -147,7 +205,7 @@ def main(page: ft.Page):
         if len(proxies) > 0:
             proxies_content = [ft.Column(
             controls=[
-                ft.Text("Прокси (HTTP)", size=20),
+                ft.Text("Прокси", size=20),
                 ft.Column(
                     controls=proxies
                 )
@@ -170,13 +228,17 @@ def main(page: ft.Page):
 
     def save_config(e):
         profile_name = profile_name_field.value
-        user_agent_value = user_agent_field.value if user_agent_field.value else user_agent
+        user_agent_value = user_agent_field.value if user_agent_field.value else USER_AGENT
         screen_value = screen_dropdown.value if screen_dropdown.value else "1920×1080"
-        timezone_value = timezone_dropdown.value if timezone_dropdown.value else "Europe/Helsinki"
+        timezone_value = timezone_dropdown.value if timezone_dropdown.value else "utc"
         language_value = language_dropdown.value if language_dropdown.value else "en"
         proxy_value = proxy_dropdown.value if proxy_dropdown.value else False
         cookies_value = cookies_field.value if cookies_field.value else False
         webgl_value = webgl_switch.value
+        vendor_value = vendor_field.value if vendor_field.value else "Google Inc."
+        cpu_threads_value = int(cpu_threads_field.value) if int(cpu_threads_field.value) else 6
+        ram_value = int(ram_field.value) if int(ram_field.value) else 6
+        is_touch_value = is_touch_switch.value
 
         with open(f"config/{profile_name}.json", "w", encoding="utf-8") as f:
             json.dump(obj={
@@ -187,14 +249,18 @@ def main(page: ft.Page):
                 "lang": language_value,
                 "proxy": proxy_value,
                 "cookies": cookies_value,
-                "webgl": webgl_value
+                "webgl": webgl_value,
+                "vendor": vendor_value,
+                "cpu": cpu_threads_value,
+                "ram": ram_value,
+                "is_touch": is_touch_value
             }, fp=f, indent=4)
 
         page.controls = get_config_content()
         page.update()
 
     def open_config_page(e):
-        global profile_name_field, user_agent_field, screen_dropdown, timezone_dropdown, language_dropdown, proxy_dropdown, cookies_field, webgl_switch
+        global profile_name_field, user_agent_field, screen_dropdown, timezone_dropdown, language_dropdown, proxy_dropdown, cookies_field, webgl_switch, vendor_field, cpu_threads_field, ram_field, is_touch_switch
 
         n = 1
 
@@ -205,28 +271,28 @@ def main(page: ft.Page):
                 n += 1
 
         profile_name_field = ft.TextField(label="Имя профиля", value=f"Profile {n}", border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
-        user_agent_field = ft.TextField(hint_text="User Agent", value=user_agent, expand=True, border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
+        user_agent_field = ft.TextField(hint_text="User Agent", value=USER_AGENT, expand=True, border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
         screen_dropdown = ft.Dropdown(
             label="Экран",
             value="1920×1080",
             width=300,
             border_color=ft.Colors.WHITE,
             border_radius=20,
-            options=[ft.dropdown.Option(screen) for screen in screens]
+            options=[ft.dropdown.Option(screen) for screen in SCREENS]
         )
         timezone_dropdown = ft.Dropdown(
             label="Часовой пояс",
             width=350,
             border_color=ft.Colors.WHITE,
             border_radius=20,
-            options=[ft.dropdown.Option(timezone) for timezone in timezones]
+            options=[ft.dropdown.Option(timezone) for timezone in TIMEZONES]
         )
         language_dropdown = ft.Dropdown(
             label="Язык",
             width=200,
             border_color=ft.Colors.WHITE,
             border_radius=20,
-            options=[ft.dropdown.Option(lang) for lang in languages]
+            options=[ft.dropdown.Option(lang) for lang in LANGUAGES]
         )
         proxy_dropdown = ft.Dropdown(
             label="Прокси",
@@ -239,6 +305,14 @@ def main(page: ft.Page):
         webgl_switch = ft.Switch(
             adaptive=True,
             label="WebGL",
+            value=False,
+        )
+        vendor_field = ft.TextField(label="Производитель", value="Google Inc.", expand=True, border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
+        cpu_threads_field = ft.TextField(label="Логические процессоры", value=6, keyboard_type=ft.KeyboardType.NUMBER, border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
+        ram_field = ft.TextField(label="Оперативная память", value=6, keyboard_type=ft.KeyboardType.NUMBER, border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
+        is_touch_switch = ft.Switch(
+            adaptive=True,
+            label="Касание",
             value=False,
         )
 
@@ -267,12 +341,12 @@ def main(page: ft.Page):
                 ft.Container(
                     padding=20,
                     content=ft.Row(
-                        spacing=50,
+                        spacing=10,
                         controls=[
                             timezone_dropdown,
                             language_dropdown,
                             proxy_dropdown
-                        ],
+                        ]
                     ),
                 ),
                 ft.Container(
@@ -284,6 +358,17 @@ def main(page: ft.Page):
                         ]
                     )
                 ),
+                ft.Container(
+                    padding=20,
+                    content=ft.Row(
+                        [
+                            vendor_field,
+                            cpu_threads_field,
+                            ram_field,
+                            is_touch_switch
+                        ]
+                    )
+                )
             ],
             spacing=5,
             alignment=ft.MainAxisAlignment.CENTER,
@@ -321,4 +406,11 @@ def main(page: ft.Page):
 
     page.add(get_config_content()[0])
 
-ft.app(main)
+if __name__ == "__main__":
+    if not os.path.isdir("config"):
+        os.mkdir("config")
+
+    if not os.path.isdir("cookies"):
+        os.mkdir("cookies")
+
+    ft.app(main)
