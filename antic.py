@@ -300,7 +300,7 @@ def main(page: ft.Page):
         else:
             proxies_content = [ft.Row(
                 [
-                    ft.Text("Прокси (HTTP)", size=20)
+                    ft.Text("Прокси", size=20)
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
             )]
