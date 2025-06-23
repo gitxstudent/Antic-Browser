@@ -15,6 +15,7 @@ COUNTRY_DATABASE_PATH = "GeoLite2-Country.mmdb"
 CITY_DATABASE_PATH = "GeoLite2-City.mmdb"
 HARDWARE_DATA_PATH = "hardware.json"
 LAPTOP_MODELS_PATH = os.path.join("hardware", "laptop_models.json")
+DEVICE_DATA_PATH = os.path.join("hardware", "devices.json")
 
 SCREENS = ("800×600", "960×540", "1024×768", "1152×864", "1280×720", "1280×768", "1280×800", "1280×1024", "1366×768", "1408×792", "1440×900", "1400×1050", "1440×1080", "1536×864", "1600×900", "1600×1024", "1600×1200", "1680×1050", "1920×1080", "1920×1200", "2048×1152", "2560×1080", "2560×1440", "3440×1440")
 LANGUAGES = ("en-US", "en-GB", "fr-FR", "ru-RU", "es-ES", "pl-PL", "pt-PT", "nl-NL", "zh-CN")
@@ -79,6 +80,26 @@ def load_laptop_models_data() -> dict:
 
     os.makedirs(os.path.dirname(LAPTOP_MODELS_PATH), exist_ok=True)
     with open(LAPTOP_MODELS_PATH, "w", encoding="utf-8") as f:
+        json.dump(default_data, f, indent=4)
+
+    return default_data
+
+
+def load_device_data() -> dict:
+    """Load device/OS/manufacturer mapping, creating defaults if missing."""
+    if os.path.isfile(DEVICE_DATA_PATH):
+        with open(DEVICE_DATA_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    default_data = {
+        "Windows": {
+            "laptop": ["ASUS", "APPLE"],
+            "pc": ["ASUS"]
+        }
+    }
+
+    os.makedirs(os.path.dirname(DEVICE_DATA_PATH), exist_ok=True)
+    with open(DEVICE_DATA_PATH, "w", encoding="utf-8") as f:
         json.dump(default_data, f, indent=4)
 
     return default_data
@@ -384,6 +405,8 @@ def main(page: ft.Page):
         cpu_threads_value = int(cpu_threads_field.value) if int(cpu_threads_field.value) else 6
         ram_value = int(ram_field.value) if int(ram_field.value) else 6
         is_touch_value = is_touch_switch.value
+        os_value = os_dropdown.value if os_dropdown.value else ""
+        device_type_value = device_type_dropdown.value if device_type_dropdown.value else ""
         manufacturer_value = manufacturer_dropdown.value if manufacturer_dropdown.value else ""
         model_value = model_dropdown.value if model_dropdown.value else ""
         mainboard_value = mainboard_dropdown.value if mainboard_dropdown.value else ""
@@ -408,6 +431,8 @@ def main(page: ft.Page):
                 "cpu": cpu_threads_value,
                 "ram": ram_value,
                 "is_touch": is_touch_value,
+                "os": os_value,
+                "device_type": device_type_value,
                 "manufacturer": manufacturer_value,
                 "model": model_value,
                 "mainboard": mainboard_value,
@@ -423,7 +448,7 @@ def main(page: ft.Page):
         page.update()
 
     def open_config_page(e):
-        global profile_name_field, user_agent_field, screen_dropdown, timezone_dropdown, language_dropdown, proxy_dropdown, cookies_field, webgl_switch, vendor_field, cpu_threads_field, ram_field, is_touch_switch, manufacturer_dropdown, model_dropdown, mainboard_dropdown, cpu_dropdown, ram_dropdown, gpu_dropdown, sound_dropdown, mouse_dropdown, battery_dropdown
+        global profile_name_field, user_agent_field, screen_dropdown, timezone_dropdown, language_dropdown, proxy_dropdown, cookies_field, webgl_switch, vendor_field, cpu_threads_field, ram_field, is_touch_switch, os_dropdown, device_type_dropdown, manufacturer_dropdown, model_dropdown, mainboard_dropdown, cpu_dropdown, ram_dropdown, gpu_dropdown, sound_dropdown, mouse_dropdown, battery_dropdown
 
         n = 1
 
@@ -435,7 +460,24 @@ def main(page: ft.Page):
 
         hardware = load_hardware_data()
         models_data = load_laptop_models_data()
+        devices = load_device_data()
         asus_boards = hardware.get("ASUS", {}).get("laptop", {}).get("mainboards", {})
+
+        def on_os_change(e):
+            device_types = devices.get(os_dropdown.value, {})
+            device_type_dropdown.options = [ft.dropdown.Option(dt) for dt in device_types.keys()]
+            device_type_dropdown.value = None
+            on_device_type_change(None)
+            page.update()
+
+        def on_device_type_change(e):
+            manufacturers = []
+            if os_dropdown.value:
+                manufacturers = devices.get(os_dropdown.value, {}).get(device_type_dropdown.value, [])
+            manufacturer_dropdown.options = [ft.dropdown.Option(m) for m in manufacturers]
+            manufacturer_dropdown.value = None
+            on_manufacturer_change(None)
+            page.update()
 
         def on_manufacturer_change(e):
             models = models_data.get(manufacturer_dropdown.value, {}).get("models", {})
@@ -464,7 +506,7 @@ def main(page: ft.Page):
             page.update()
 
         def on_mainboard_change(e):
-            boards = hardware.get(manufacturer_dropdown.value, {}).get("laptop", {}).get("mainboards", {})
+            boards = hardware.get(manufacturer_dropdown.value, {}).get(device_type_dropdown.value or "laptop", {}).get("mainboards", {})
             specs = boards.get(mainboard_dropdown.value, {})
             cpu_dropdown.options = [ft.dropdown.Option(v) for v in specs.get("cpu", [])]
             ram_dropdown.options = [ft.dropdown.Option(v) for v in specs.get("ram", [])]
@@ -522,12 +564,27 @@ def main(page: ft.Page):
             value=False,
         )
 
+        os_dropdown = ft.Dropdown(
+            label="OS",
+            width=150,
+            border_color=ft.Colors.WHITE,
+            border_radius=20,
+            options=[ft.dropdown.Option(o) for o in devices.keys()],
+            on_change=on_os_change,
+        )
+        device_type_dropdown = ft.Dropdown(
+            label="Loại thiết bị",
+            width=150,
+            border_color=ft.Colors.WHITE,
+            border_radius=20,
+            on_change=on_device_type_change,
+        )
+
         manufacturer_dropdown = ft.Dropdown(
             label="Hãng",
             width=200,
             border_color=ft.Colors.WHITE,
             border_radius=20,
-            options=[ft.dropdown.Option(m) for m in models_data.keys()],
             on_change=on_manufacturer_change,
         )
         model_dropdown = ft.Dropdown(
@@ -543,7 +600,7 @@ def main(page: ft.Page):
             width=250,
             border_color=ft.Colors.WHITE,
             border_radius=20,
-            options=[ft.dropdown.Option(b) for b in asus_boards.keys()],
+            options=[],
             on_change=on_mainboard_change,
         )
         cpu_dropdown = ft.Dropdown(label="CPU", width=200, border_color=ft.Colors.WHITE, border_radius=20)
@@ -610,6 +667,8 @@ def main(page: ft.Page):
                     padding=20,
                     content=ft.Row(
                         [
+                            os_dropdown,
+                            device_type_dropdown,
                             manufacturer_dropdown,
                             model_dropdown
                         ]
@@ -707,5 +766,6 @@ if __name__ == "__main__":
     # ensure default hardware and laptop model data exist
     load_hardware_data()
     load_laptop_models_data()
+    load_device_data()
 
     ft.app(main)
