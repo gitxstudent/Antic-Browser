@@ -1,0 +1,11 @@
+{
+  "ASUS": {
+    "models": {
+      "Zephyrus G14": {
+        "mainboards": ["ROG STRIX B550"],
+        "mouse": ["Touchpad"],
+        "battery": ["76Wh"]
+      }
+    }
+  }
+}
