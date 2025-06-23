@@ -7,5 +7,14 @@
         "battery": ["76Wh"]
       }
     }
+  },
+  "APPLE": {
+    "models": {
+      "MacBook Air": {
+        "mainboards": ["M1"],
+        "mouse": ["Touchpad"],
+        "battery": ["49.9Wh"]
+      }
+    }
   }
 }

@@ -16,5 +16,17 @@
         }
       }
     }
+  },
+  "APPLE": {
+    "laptop": {
+      "mainboards": {
+        "M1": {
+          "cpu": ["Apple M1"],
+          "ram": ["8GB", "16GB"],
+          "gpu": ["Integrated"],
+          "sound": ["Apple Sound"]
+        }
+      }
+    }
   }
 }

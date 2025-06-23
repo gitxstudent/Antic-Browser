@@ -9,6 +9,8 @@ load_hardware_data = antic.load_hardware_data
 HARDWARE_DATA_PATH = antic.HARDWARE_DATA_PATH
 load_laptop_models_data = antic.load_laptop_models_data
 LAPTOP_MODELS_PATH = antic.LAPTOP_MODELS_PATH
+load_device_data = antic.load_device_data
+DEVICE_DATA_PATH = antic.DEVICE_DATA_PATH
 
 
 def test_load_hardware_data(tmp_path, monkeypatch):
@@ -29,3 +31,12 @@ def test_load_laptop_models_data(tmp_path, monkeypatch):
     data = load_laptop_models_data()
     assert 'ASUS' in data
     assert 'models' in data['ASUS']
+
+
+def test_load_device_data(tmp_path, monkeypatch):
+    temp_dir = tmp_path / 'hardware'
+    temp_dir.mkdir()
+    temp_file = temp_dir / 'devices.json'
+    monkeypatch.setattr(antic, 'DEVICE_DATA_PATH', str(temp_file))
+    data = load_device_data()
+    assert 'Windows' in data

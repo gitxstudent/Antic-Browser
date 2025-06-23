@@ -1,0 +1,18 @@
+{
+  "Windows": {
+    "laptop": ["ASUS", "APPLE"],
+    "pc": ["ASUS"]
+  },
+  "MacOS": {
+    "laptop": ["APPLE"]
+  },
+  "Linux": {
+    "laptop": ["ASUS"]
+  },
+  "iOS": {
+    "phone": ["APPLE"]
+  },
+  "Android": {
+    "phone": ["Google"]
+  }
+}
