@@ -5,3 +5,5 @@ requests
 timezonefinder
 pproxy
 geoip2
+
+pytest
