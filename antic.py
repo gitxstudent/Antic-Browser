@@ -223,14 +223,14 @@ def main(page: ft.Page):
                 ]),
                 ft.Row([
                     ft.IconButton(icon=ft.Icons.DELETE, icon_color=ft.Colors.WHITE70, on_click=lambda _: delete_profile(cfg)),
-                    ft.FilledButton(text="Старт", icon="play_arrow", style=ft.ButtonStyle(padding=20), on_click=lambda _: config_load(cfg))
+                    ft.FilledButton(text="Bắt đầu", icon="play_arrow", style=ft.ButtonStyle(padding=20), on_click=lambda _: config_load(cfg))
                 ])
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)))
 
         if len(configs) > 0:
             config_content = [ft.Column(
             controls=[
-                ft.Text("Конфиги", size=20),
+                ft.Text("Cấu hình", size=20),
                 ft.Column(
                     controls=configs
                 )
@@ -244,7 +244,7 @@ def main(page: ft.Page):
         else:
             config_content = [ft.Row(
                 [
-                    ft.Text("Конфиги", size=20)
+                    ft.Text("Cấu hình", size=20)
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
             )]
@@ -286,7 +286,7 @@ def main(page: ft.Page):
         if len(proxies) > 0:
             proxies_content = [ft.Column(
             controls=[
-                ft.Text("Прокси", size=20),
+                ft.Text("Proxy", size=20),
                 ft.Column(
                     controls=proxies
                 )
@@ -300,7 +300,7 @@ def main(page: ft.Page):
         else:
             proxies_content = [ft.Row(
                 [
-                    ft.Text("Прокси", size=20)
+                    ft.Text("Proxy", size=20)
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
             )]
@@ -351,10 +351,10 @@ def main(page: ft.Page):
             else:
                 n += 1
 
-        profile_name_field = ft.TextField(label="Имя профиля", value=f"Profile {n}", border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
+        profile_name_field = ft.TextField(label="Tên hồ sơ", value=f"Profile {n}", border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
         user_agent_field = ft.TextField(hint_text="User Agent", value=USER_AGENT, expand=True, border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
         screen_dropdown = ft.Dropdown(
-            label="Экран",
+            label="Màn hình",
             value="1920×1080",
             width=300,
             border_color=ft.Colors.WHITE,
@@ -362,50 +362,50 @@ def main(page: ft.Page):
             options=[ft.dropdown.Option(screen) for screen in SCREENS]
         )
         timezone_dropdown = ft.Dropdown(
-            label="Часовой пояс",
+            label="Múi giờ",
             width=350,
             border_color=ft.Colors.WHITE,
             border_radius=20,
             options=[ft.dropdown.Option(timezone) for timezone in TIMEZONES]
         )
         language_dropdown = ft.Dropdown(
-            label="Язык",
+            label="Ngôn ngữ",
             width=200,
             border_color=ft.Colors.WHITE,
             border_radius=20,
             options=[ft.dropdown.Option(lang) for lang in LANGUAGES]
         )
         proxy_dropdown = ft.Dropdown(
-            label="Прокси",
+            label="Proxy",
             expand=True,
             border_color=ft.Colors.WHITE,
             border_radius=20,
             options=[ft.dropdown.Option(proxy) for proxy in get_proxy()]
         )
-        cookies_field = ft.TextField(hint_text="Путь к куки", expand=True, border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
+        cookies_field = ft.TextField(hint_text="Đường dẫn đến cookie", expand=True, border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
         webgl_switch = ft.Switch(
             adaptive=True,
             label="WebGL",
             value=False,
         )
-        vendor_field = ft.TextField(label="Производитель", value="Google Inc.", expand=True, border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
-        cpu_threads_field = ft.TextField(label="Логические процессоры", value=6, keyboard_type=ft.KeyboardType.NUMBER, border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
-        ram_field = ft.TextField(label="Оперативная память", value=6, keyboard_type=ft.KeyboardType.NUMBER, border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
+        vendor_field = ft.TextField(label="Nhà sản xuất", value="Google Inc.", expand=True, border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
+        cpu_threads_field = ft.TextField(label="Số luồng CPU", value=6, keyboard_type=ft.KeyboardType.NUMBER, border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
+        ram_field = ft.TextField(label="RAM", value=6, keyboard_type=ft.KeyboardType.NUMBER, border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
         is_touch_switch = ft.Switch(
             adaptive=True,
-            label="Касания",
+            label="Cảm ứng",
             value=False,
         )
 
         page.controls = [ft.Column(
             controls=[
-                ft.Text("Новый конфиг", size=20),
+                ft.Text("Cấu hình mới", size=20),
                 ft.Container(
                     padding=20,
                     content=ft.Row(
                         [
                             profile_name_field,
-                            ft.FilledButton(text="Сохранить", icon="check", style=ft.ButtonStyle(padding=20), on_click=save_config)
+                            ft.FilledButton(text="Lưu", icon="check", style=ft.ButtonStyle(padding=20), on_click=save_config)
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                     )
@@ -489,8 +489,8 @@ def main(page: ft.Page):
     page.navigation_bar = ft.NavigationBar(
         on_change=update_content,
         destinations=[
-            ft.NavigationBarDestination(icon=ft.Icons.TUNE, label="Конфиги"),
-            ft.NavigationBarDestination(icon=ft.Icons.VPN_KEY, label="Прокси")
+            ft.NavigationBarDestination(icon=ft.Icons.TUNE, label="Cấu hình"),
+            ft.NavigationBarDestination(icon=ft.Icons.VPN_KEY, label="Proxy")
         ],
         border=ft.Border(
             top=ft.BorderSide(color=ft.CupertinoColors.SYSTEM_GREY2, width=0)
