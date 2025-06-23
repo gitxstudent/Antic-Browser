@@ -1,22 +1,22 @@
 # 🎭 Antic Browser ![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white)
 
-Бесплатный Open Source антидетект браузер построенный на Flutter
+Trình duyệt chống nhận dạng mã nguồn mở miễn phí được xây dựng bằng Flutter
 
-## ⚙️ Список возможностей настройки профиля
+## ⚙️ Danh sách tùy chỉnh hồ sơ
 
-| Настройки             | Можно изменить |
+| Thiết lập             | Có thể thay đổi |
 | ------------------------------ | ----- |
 | *User Agent*                   | ✅    |
-| *Разрешение экрана*            | ✅    |
-| *Часовой пояс*                 | ✅    |
-| *Язык*                         | ✅    |
-| *Включить/выключить WebGL*     | ✅    |
-| *Производитель*                | ✅    |
-| *Логические процессоры*        | ✅    |
-| *Оперативная память*           | ✅    |
-| *Эмуляция касаний*             | ✅    |
+| *Độ phân giải màn hình*            | ✅    |
+| *Múi giờ*                 | ✅    |
+| *Ngôn ngữ*                         | ✅    |
+| *Bật/tắt WebGL*     | ✅    |
+| *Nhà sản xuất*                | ✅    |
+| *Số luồng CPU*        | ✅    |
+| *RAM*           | ✅    |
+| *Giả lập cảm ứng*             | ✅    |
 
-## 📥 Установка
+## 📥 Cài đặt
 ```sh
 git clone https://github.com/clienthold/Antic-Browser.git
 cd Antic-Browser
@@ -24,6 +24,6 @@ pip3 install -r requirements.txt
 playwright install
 ```
 
-## ✨ Скриншоты
+## ✨ Ảnh chụp màn hình
 ![Screenshot](https://github.com/user-attachments/assets/8c38bdea-5e46-4925-b92f-0c00feb2ab14)
 ![Screenshot](https://github.com/user-attachments/assets/1aee35f4-7075-415a-bbcf-46aa5635d89c)
