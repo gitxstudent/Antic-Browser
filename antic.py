@@ -14,6 +14,7 @@ from playwright.async_api._generated import BrowserContext
 COUNTRY_DATABASE_PATH = "GeoLite2-Country.mmdb"
 CITY_DATABASE_PATH = "GeoLite2-City.mmdb"
 HARDWARE_DATA_PATH = "hardware.json"
+LAPTOP_MODELS_PATH = os.path.join("hardware", "laptop_models.json")
 
 SCREENS = ("800×600", "960×540", "1024×768", "1152×864", "1280×720", "1280×768", "1280×800", "1280×1024", "1366×768", "1408×792", "1440×900", "1400×1050", "1440×1080", "1536×864", "1600×900", "1600×1024", "1600×1200", "1680×1050", "1920×1080", "1920×1200", "2048×1152", "2560×1080", "2560×1440", "3440×1440")
 LANGUAGES = ("en-US", "en-GB", "fr-FR", "ru-RU", "es-ES", "pl-PL", "pt-PT", "nl-NL", "zh-CN")
@@ -53,6 +54,31 @@ def load_hardware_data() -> dict:
     }
 
     with open(HARDWARE_DATA_PATH, "w", encoding="utf-8") as f:
+        json.dump(default_data, f, indent=4)
+
+    return default_data
+
+
+def load_laptop_models_data() -> dict:
+    """Load laptop models data from JSON file and create defaults if missing."""
+    if os.path.isfile(LAPTOP_MODELS_PATH):
+        with open(LAPTOP_MODELS_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    default_data = {
+        "ASUS": {
+            "models": {
+                "Zephyrus G14": {
+                    "mainboards": ["ROG STRIX B550"],
+                    "mouse": ["Touchpad"],
+                    "battery": ["76Wh"]
+                }
+            }
+        }
+    }
+
+    os.makedirs(os.path.dirname(LAPTOP_MODELS_PATH), exist_ok=True)
+    with open(LAPTOP_MODELS_PATH, "w", encoding="utf-8") as f:
         json.dump(default_data, f, indent=4)
 
     return default_data
@@ -358,11 +384,15 @@ def main(page: ft.Page):
         cpu_threads_value = int(cpu_threads_field.value) if int(cpu_threads_field.value) else 6
         ram_value = int(ram_field.value) if int(ram_field.value) else 6
         is_touch_value = is_touch_switch.value
+        manufacturer_value = manufacturer_dropdown.value if manufacturer_dropdown.value else ""
+        model_value = model_dropdown.value if model_dropdown.value else ""
         mainboard_value = mainboard_dropdown.value if mainboard_dropdown.value else ""
         hw_cpu_value = cpu_dropdown.value if cpu_dropdown.value else ""
         hw_ram_value = ram_dropdown.value if ram_dropdown.value else ""
         hw_gpu_value = gpu_dropdown.value if gpu_dropdown.value else ""
         hw_sound_value = sound_dropdown.value if sound_dropdown.value else ""
+        mouse_value = mouse_dropdown.value if mouse_dropdown.value else ""
+        battery_value = battery_dropdown.value if battery_dropdown.value else ""
 
         with open(f"config/{profile_name}.json", "w", encoding="utf-8") as f:
             json.dump(obj={
@@ -378,18 +408,22 @@ def main(page: ft.Page):
                 "cpu": cpu_threads_value,
                 "ram": ram_value,
                 "is_touch": is_touch_value,
+                "manufacturer": manufacturer_value,
+                "model": model_value,
                 "mainboard": mainboard_value,
                 "hw_cpu": hw_cpu_value,
                 "hw_ram": hw_ram_value,
                 "hw_gpu": hw_gpu_value,
-                "hw_sound": hw_sound_value
+                "hw_sound": hw_sound_value,
+                "mouse": mouse_value,
+                "battery": battery_value
             }, fp=f, indent=4)
 
         page.controls = get_config_content()
         page.update()
 
     def open_config_page(e):
-        global profile_name_field, user_agent_field, screen_dropdown, timezone_dropdown, language_dropdown, proxy_dropdown, cookies_field, webgl_switch, vendor_field, cpu_threads_field, ram_field, is_touch_switch, mainboard_dropdown, cpu_dropdown, ram_dropdown, gpu_dropdown, sound_dropdown
+        global profile_name_field, user_agent_field, screen_dropdown, timezone_dropdown, language_dropdown, proxy_dropdown, cookies_field, webgl_switch, vendor_field, cpu_threads_field, ram_field, is_touch_switch, manufacturer_dropdown, model_dropdown, mainboard_dropdown, cpu_dropdown, ram_dropdown, gpu_dropdown, sound_dropdown, mouse_dropdown, battery_dropdown
 
         n = 1
 
@@ -400,10 +434,38 @@ def main(page: ft.Page):
                 n += 1
 
         hardware = load_hardware_data()
+        models_data = load_laptop_models_data()
         asus_boards = hardware.get("ASUS", {}).get("laptop", {}).get("mainboards", {})
 
+        def on_manufacturer_change(e):
+            models = models_data.get(manufacturer_dropdown.value, {}).get("models", {})
+            model_dropdown.options = [ft.dropdown.Option(m) for m in models.keys()]
+            model_dropdown.value = None
+            on_model_change(None)
+            page.update()
+
+        def on_model_change(e):
+            model_info = models_data.get(manufacturer_dropdown.value, {}).get("models", {}).get(model_dropdown.value, {})
+            boards = model_info.get("mainboards", [])
+            mainboard_dropdown.options = [ft.dropdown.Option(b) for b in boards]
+            mainboard_dropdown.value = None
+            mouse_dropdown.options = [ft.dropdown.Option(m) for m in model_info.get("mouse", [])]
+            battery_dropdown.options = [ft.dropdown.Option(b) for b in model_info.get("battery", [])]
+            mouse_dropdown.value = None
+            battery_dropdown.value = None
+            cpu_dropdown.options = []
+            ram_dropdown.options = []
+            gpu_dropdown.options = []
+            sound_dropdown.options = []
+            cpu_dropdown.value = None
+            ram_dropdown.value = None
+            gpu_dropdown.value = None
+            sound_dropdown.value = None
+            page.update()
+
         def on_mainboard_change(e):
-            specs = asus_boards.get(mainboard_dropdown.value, {})
+            boards = hardware.get(manufacturer_dropdown.value, {}).get("laptop", {}).get("mainboards", {})
+            specs = boards.get(mainboard_dropdown.value, {})
             cpu_dropdown.options = [ft.dropdown.Option(v) for v in specs.get("cpu", [])]
             ram_dropdown.options = [ft.dropdown.Option(v) for v in specs.get("ram", [])]
             gpu_dropdown.options = [ft.dropdown.Option(v) for v in specs.get("gpu", [])]
@@ -460,6 +522,22 @@ def main(page: ft.Page):
             value=False,
         )
 
+        manufacturer_dropdown = ft.Dropdown(
+            label="Hãng",
+            width=200,
+            border_color=ft.Colors.WHITE,
+            border_radius=20,
+            options=[ft.dropdown.Option(m) for m in models_data.keys()],
+            on_change=on_manufacturer_change,
+        )
+        model_dropdown = ft.Dropdown(
+            label="Model",
+            width=200,
+            border_color=ft.Colors.WHITE,
+            border_radius=20,
+            on_change=on_model_change,
+        )
+
         mainboard_dropdown = ft.Dropdown(
             label="Mainboard",
             width=250,
@@ -472,6 +550,8 @@ def main(page: ft.Page):
         ram_dropdown = ft.Dropdown(label="RAM", width=150, border_color=ft.Colors.WHITE, border_radius=20)
         gpu_dropdown = ft.Dropdown(label="GPU", width=200, border_color=ft.Colors.WHITE, border_radius=20)
         sound_dropdown = ft.Dropdown(label="Sound", width=200, border_color=ft.Colors.WHITE, border_radius=20)
+        mouse_dropdown = ft.Dropdown(label="Mouse", width=200, border_color=ft.Colors.WHITE, border_radius=20)
+        battery_dropdown = ft.Dropdown(label="Battery", width=200, border_color=ft.Colors.WHITE, border_radius=20)
 
         page.controls = [ft.Column(
             controls=[
@@ -530,11 +610,29 @@ def main(page: ft.Page):
                     padding=20,
                     content=ft.Row(
                         [
+                            manufacturer_dropdown,
+                            model_dropdown
+                        ]
+                    )
+                ),
+                ft.Container(
+                    padding=20,
+                    content=ft.Row(
+                        [
                             mainboard_dropdown,
                             cpu_dropdown,
                             ram_dropdown,
                             gpu_dropdown,
                             sound_dropdown
+                        ]
+                    )
+                ),
+                ft.Container(
+                    padding=20,
+                    content=ft.Row(
+                        [
+                            mouse_dropdown,
+                            battery_dropdown
                         ]
                     )
                 )
@@ -605,5 +703,9 @@ if __name__ == "__main__":
 
         with open(CITY_DATABASE_PATH, "wb") as file:
             file.write(response.content)
+
+    # ensure default hardware and laptop model data exist
+    load_hardware_data()
+    load_laptop_models_data()
 
     ft.app(main)
