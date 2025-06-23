@@ -1,18 +1,26 @@
 {
   "Windows": {
-    "laptop": ["ASUS", "APPLE"],
-    "pc": ["ASUS"]
+    "laptop": ["ASUS", "APPLE", "Dell"],
+    "pc": ["ASUS", "MSI", "Dell", "HP"],
+    "tablet": ["Microsoft"],
+    "phone": ["Microsoft"]
   },
   "MacOS": {
-    "laptop": ["APPLE"]
+    "laptop": ["APPLE"],
+    "pc": ["APPLE"]
   },
   "Linux": {
-    "laptop": ["ASUS"]
+    "laptop": ["ASUS", "Dell"],
+    "pc": ["ASUS", "Dell"],
+    "tablet": ["Generic"],
+    "phone": []
   },
   "iOS": {
-    "phone": ["APPLE"]
+    "phone": ["APPLE"],
+    "tablet": ["APPLE"]
   },
   "Android": {
-    "phone": ["Google"]
+    "phone": ["Google", "Samsung"],
+    "tablet": ["Samsung", "LG"]
   }
 }

@@ -27,6 +27,34 @@
           "sound": ["Apple Sound"]
         }
       }
+    },
+    "phone": {
+      "mainboards": {
+        "A14": {
+          "cpu": ["A14 Bionic"],
+          "ram": ["4GB"],
+          "gpu": ["Apple GPU"],
+          "sound": ["Apple Sound"]
+        },
+        "A17": {
+          "cpu": ["A17 Pro"],
+          "ram": ["8GB"],
+          "gpu": ["Apple GPU"],
+          "sound": ["Apple Sound"]
+        }
+      }
+    }
+  },
+  "GOOGLE": {
+    "phone": {
+      "mainboards": {
+        "Tensor G2": {
+          "cpu": ["Tensor G2"],
+          "ram": ["8GB"],
+          "gpu": ["Mali"],
+          "sound": ["Generic"]
+        }
+      }
     }
   }
 }

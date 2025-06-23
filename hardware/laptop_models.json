@@ -14,6 +14,25 @@
         "mainboards": ["M1"],
         "mouse": ["Touchpad"],
         "battery": ["49.9Wh"]
+      },
+      "iPhone 14": {
+        "mainboards": ["A14"],
+        "mouse": ["Touch"],
+        "battery": ["3200mAh"]
+      },
+      "iPhone 17": {
+        "mainboards": ["A17"],
+        "mouse": ["Touch"],
+        "battery": ["4500mAh"]
+      }
+    }
+  },
+  "GOOGLE": {
+    "models": {
+      "Pixel 8": {
+        "mainboards": ["Tensor G2"],
+        "mouse": ["Touch"],
+        "battery": ["4300mAh"]
       }
     }
   }

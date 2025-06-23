@@ -7,6 +7,7 @@ import pproxy
 import asyncio
 import geoip2.database
 from functools import lru_cache
+import time
 from timezonefinder import TimezoneFinder
 from playwright.async_api import async_playwright
 from playwright.async_api._generated import BrowserContext
@@ -16,6 +17,7 @@ CITY_DATABASE_PATH = "GeoLite2-City.mmdb"
 HARDWARE_DATA_PATH = "hardware.json"
 LAPTOP_MODELS_PATH = os.path.join("hardware", "laptop_models.json")
 DEVICE_DATA_PATH = os.path.join("hardware", "devices.json")
+PROXY_DATA_PATH = "proxies.json"
 
 SCREENS = ("800×600", "960×540", "1024×768", "1152×864", "1280×720", "1280×768", "1280×800", "1280×1024", "1366×768", "1408×792", "1440×900", "1400×1050", "1440×1080", "1536×864", "1600×900", "1600×1024", "1600×1200", "1680×1050", "1920×1080", "1920×1200", "2048×1152", "2560×1080", "2560×1440", "3440×1440")
 LANGUAGES = ("en-US", "en-GB", "fr-FR", "ru-RU", "es-ES", "pl-PL", "pt-PT", "nl-NL", "zh-CN")
@@ -103,6 +105,56 @@ def load_device_data() -> dict:
         json.dump(default_data, f, indent=4)
 
     return default_data
+
+
+def load_proxies_data() -> list:
+    """Load proxy list from JSON file, creating empty list if missing."""
+    if os.path.isfile(PROXY_DATA_PATH):
+        with open(PROXY_DATA_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    with open(PROXY_DATA_PATH, "w", encoding="utf-8") as f:
+        json.dump([], f, indent=4)
+
+    return []
+
+
+def save_proxies_data(data: list) -> None:
+    """Save proxy list to JSON file."""
+    with open(PROXY_DATA_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
+
+
+async def check_proxy(proxy: str) -> dict:
+    """Return proxy status and latency using TCP connection."""
+    protocol = proxy.split("://")[0]
+    if "@" in proxy:
+        addr = proxy.split("@")[1]
+    else:
+        addr = proxy.split("://")[1]
+    ip, port = addr.split(":")[:2]
+    start = time.monotonic()
+    try:
+        reader, writer = await asyncio.open_connection(ip, int(port))
+        writer.close()
+        await writer.wait_closed()
+        latency = int((time.monotonic() - start) * 1000)
+        alive = True
+    except Exception:
+        latency = None
+        alive = False
+
+    info = get_proxy_info(ip)
+    info.update({"latency": latency, "alive": alive, "protocol": protocol})
+    return info
+
+
+async def check_all_proxies(data: list) -> list:
+    """Check all proxies and update their info."""
+    for entry in data:
+        result = await check_proxy(entry["proxy"])
+        entry.update(result)
+    return data
 
 async def save_cookies(context: BrowserContext, profile: str) -> None:
     cookies = await context.cookies()
@@ -337,58 +389,78 @@ def main(page: ft.Page):
         return config_content
 
     def get_proxy():
-        proxies = []
-        
-        try:
-            with open("proxies.txt", "r", encoding="utf-8") as f:
-                for line in f.read().split("\n"):
-                    if len(line) > 0:
-                        proxies.append(line)
+        return load_proxies_data()
 
-            return proxies
-        except FileNotFoundError:
-            os.close(os.open("proxies.txt", os.O_CREAT))
-            return []
+    def remove_proxy(proxy_url: str):
+        data = load_proxies_data()
+        data = [p for p in data if p.get("proxy") != proxy_url]
+        save_proxies_data(data)
+        page.controls = get_proxies_content()
+        page.update()
+
+    def add_proxy(e):
+        data = load_proxies_data()
+        proxy_url = add_proxy_field.value
+        if proxy_url:
+            data.append({"proxy": proxy_url})
+            save_proxies_data(data)
+            add_proxy_field.value = ""
+            page.controls = get_proxies_content()
+            page.update()
+
+    def check_all(e):
+        data = load_proxies_data()
+        data = asyncio.run(check_all_proxies(data))
+        save_proxies_data(data)
+        page.controls = get_proxies_content()
+        page.update()
 
     def get_proxies_content():
         proxies = []
+        global add_proxy_field
 
-        for line in get_proxy():
-            if "@" in line:
-                ip = line.split("://")[1].split("@")[1].split(":")[0]
-            else:
-                ip = line.split("://")[1].split(":")[0]
+        add_proxy_field = ft.TextField(hint_text="proxy", expand=True, border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
 
+        for entry in get_proxy():
+            proxy_str = entry["proxy"]
+            ip = proxy_str.split("@")[1] if "@" in proxy_str else proxy_str.split("://")[1]
+            ip = ip.split(":")[0]
             info = get_proxy_info(ip)
+            latency = entry.get("latency")
+            alive = entry.get("alive")
+
+            status_color = ft.Colors.GREEN if alive else ft.Colors.RED
 
             proxies.append(ft.Container(bgcolor=ft.Colors.WHITE24, padding=20, border_radius=20, content=ft.Row([
-                ft.Text(line, size=20, weight=ft.FontWeight.W_600),
+                ft.Text(proxy_str, size=20, weight=ft.FontWeight.W_600),
                 ft.FilledButton(text=info["country_code"], icon="flag", bgcolor=ft.Colors.WHITE24, color=ft.Colors.WHITE, icon_color=ft.Colors.WHITE, style=ft.ButtonStyle(padding=20)),
-                ft.FilledButton(text=info["city"], icon="location_city", bgcolor=ft.Colors.WHITE24, color=ft.Colors.WHITE, icon_color=ft.Colors.WHITE, style=ft.ButtonStyle(padding=20)),
-                ft.FilledButton(text=info["timezone"], icon="schedule", bgcolor=ft.Colors.WHITE24, color=ft.Colors.WHITE, icon_color=ft.Colors.WHITE, style=ft.ButtonStyle(padding=20))
+                ft.FilledButton(text=str(latency) if latency else "-", icon="speed", bgcolor=ft.Colors.WHITE24, color=status_color, icon_color=status_color, style=ft.ButtonStyle(padding=20)),
+                ft.IconButton(icon=ft.Icons.DELETE, icon_color=ft.Colors.WHITE70, on_click=lambda _, p=proxy_str: remove_proxy(p))
             ])))
 
         if len(proxies) > 0:
-            proxies_content = [ft.Column(
+            list_content = ft.Column(controls=proxies)
+        else:
+            list_content = ft.Text("Proxy", size=20)
+
+        proxies_content = [ft.Column(
             controls=[
-                ft.Text("Proxy", size=20),
-                ft.Column(
-                    controls=proxies
-                )
+                ft.Row([
+                    ft.Text("Proxy", size=20),
+                    ft.IconButton(icon=ft.Icons.CHECK, on_click=check_all),
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                ft.Row([
+                    add_proxy_field,
+                    ft.IconButton(icon=ft.Icons.ADD, on_click=add_proxy)
+                ], alignment=ft.MainAxisAlignment.START),
+                list_content
             ],
             spacing=20,
             expand=True,
             scroll=ft.ScrollMode.ALWAYS,
             alignment=ft.MainAxisAlignment.CENTER,
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER 
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER
         )]
-        else:
-            proxies_content = [ft.Row(
-                [
-                    ft.Text("Proxy", size=20)
-                ],
-                alignment=ft.MainAxisAlignment.CENTER,
-            )]
 
         return proxies_content
 
@@ -399,6 +471,10 @@ def main(page: ft.Page):
         timezone_value = timezone_dropdown.value if timezone_dropdown.value else "Europe/Moscow"
         language_value = language_dropdown.value if language_dropdown.value else "ru-RU"
         proxy_value = proxy_dropdown.value if proxy_dropdown.value else False
+        if proxy_value:
+            addr = proxy_value.split("@")[1] if "@" in proxy_value else proxy_value.split("://")[1]
+            ip = addr.split(":")[0]
+            timezone_value = get_proxy_info(ip).get("timezone", timezone_value)
         cookies_value = cookies_field.value if cookies_field.value else False
         webgl_value = webgl_switch.value
         vendor_value = vendor_field.value if vendor_field.value else "Google Inc."
@@ -547,7 +623,7 @@ def main(page: ft.Page):
             expand=True,
             border_color=ft.Colors.WHITE,
             border_radius=20,
-            options=[ft.dropdown.Option(proxy) for proxy in get_proxy()]
+            options=[ft.dropdown.Option(p["proxy"]) for p in get_proxy()]
         )
         cookies_field = ft.TextField(hint_text="Đường dẫn đến cookie", expand=True, border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
         webgl_switch = ft.Switch(
@@ -767,5 +843,6 @@ if __name__ == "__main__":
     load_hardware_data()
     load_laptop_models_data()
     load_device_data()
+    load_proxies_data()
 
     ft.app(main)
