@@ -11,6 +11,8 @@ load_laptop_models_data = antic.load_laptop_models_data
 LAPTOP_MODELS_PATH = antic.LAPTOP_MODELS_PATH
 load_device_data = antic.load_device_data
 DEVICE_DATA_PATH = antic.DEVICE_DATA_PATH
+load_proxies_data = antic.load_proxies_data
+PROXY_DATA_PATH = antic.PROXY_DATA_PATH
 
 
 def test_load_hardware_data(tmp_path, monkeypatch):
@@ -40,3 +42,11 @@ def test_load_device_data(tmp_path, monkeypatch):
     monkeypatch.setattr(antic, 'DEVICE_DATA_PATH', str(temp_file))
     data = load_device_data()
     assert 'Windows' in data
+
+
+def test_load_proxies_data(tmp_path, monkeypatch):
+    temp_file = tmp_path / 'proxies.json'
+    monkeypatch.setattr(antic, 'PROXY_DATA_PATH', str(temp_file))
+    data = load_proxies_data()
+    assert isinstance(data, list)
+    assert temp_file.exists()
