@@ -1,0 +1,20 @@
+{
+  "ASUS": {
+    "laptop": {
+      "mainboards": {
+        "ROG STRIX B550": {
+          "cpu": ["Ryzen 5 5600X", "Ryzen 7 5800X"],
+          "ram": ["8GB", "16GB", "32GB"],
+          "gpu": ["RTX 3060", "RTX 3070"],
+          "sound": ["Realtek ALC1220"]
+        },
+        "TUF Gaming B560M": {
+          "cpu": ["Intel i5-11400", "Intel i7-11700"],
+          "ram": ["8GB", "16GB"],
+          "gpu": ["GTX 1660", "RTX 2060"],
+          "sound": ["Realtek ALC897"]
+        }
+      }
+    }
+  }
+}

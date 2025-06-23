@@ -13,11 +13,49 @@ from playwright.async_api._generated import BrowserContext
 
 COUNTRY_DATABASE_PATH = "GeoLite2-Country.mmdb"
 CITY_DATABASE_PATH = "GeoLite2-City.mmdb"
+HARDWARE_DATA_PATH = "hardware.json"
 
 SCREENS = ("800×600", "960×540", "1024×768", "1152×864", "1280×720", "1280×768", "1280×800", "1280×1024", "1366×768", "1408×792", "1440×900", "1400×1050", "1440×1080", "1536×864", "1600×900", "1600×1024", "1600×1200", "1680×1050", "1920×1080", "1920×1200", "2048×1152", "2560×1080", "2560×1440", "3440×1440")
 LANGUAGES = ("en-US", "en-GB", "fr-FR", "ru-RU", "es-ES", "pl-PL", "pt-PT", "nl-NL", "zh-CN")
 TIMEZONES = pytz.common_timezones
 USER_AGENT = requests.get("https://raw.githubusercontent.com/microlinkhq/top-user-agents/refs/heads/master/src/index.json").json()[0]
+
+
+def load_hardware_data() -> dict:
+    """Load hardware specification data from JSON file.
+
+    If the file doesn't exist, create it with a minimal ASUS laptop
+    configuration and return that default data.
+    """
+    if os.path.isfile(HARDWARE_DATA_PATH):
+        with open(HARDWARE_DATA_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    default_data = {
+        "ASUS": {
+            "laptop": {
+                "mainboards": {
+                    "ROG STRIX B550": {
+                        "cpu": ["Ryzen 5 5600X", "Ryzen 7 5800X"],
+                        "ram": ["8GB", "16GB", "32GB"],
+                        "gpu": ["RTX 3060", "RTX 3070"],
+                        "sound": ["Realtek ALC1220"]
+                    },
+                    "TUF Gaming B560M": {
+                        "cpu": ["Intel i5-11400", "Intel i7-11700"],
+                        "ram": ["8GB", "16GB"],
+                        "gpu": ["GTX 1660", "RTX 2060"],
+                        "sound": ["Realtek ALC897"]
+                    }
+                }
+            }
+        }
+    }
+
+    with open(HARDWARE_DATA_PATH, "w", encoding="utf-8") as f:
+        json.dump(default_data, f, indent=4)
+
+    return default_data
 
 async def save_cookies(context: BrowserContext, profile: str) -> None:
     cookies = await context.cookies()
@@ -320,6 +358,11 @@ def main(page: ft.Page):
         cpu_threads_value = int(cpu_threads_field.value) if int(cpu_threads_field.value) else 6
         ram_value = int(ram_field.value) if int(ram_field.value) else 6
         is_touch_value = is_touch_switch.value
+        mainboard_value = mainboard_dropdown.value if mainboard_dropdown.value else ""
+        hw_cpu_value = cpu_dropdown.value if cpu_dropdown.value else ""
+        hw_ram_value = ram_dropdown.value if ram_dropdown.value else ""
+        hw_gpu_value = gpu_dropdown.value if gpu_dropdown.value else ""
+        hw_sound_value = sound_dropdown.value if sound_dropdown.value else ""
 
         with open(f"config/{profile_name}.json", "w", encoding="utf-8") as f:
             json.dump(obj={
@@ -334,14 +377,19 @@ def main(page: ft.Page):
                 "vendor": vendor_value,
                 "cpu": cpu_threads_value,
                 "ram": ram_value,
-                "is_touch": is_touch_value
+                "is_touch": is_touch_value,
+                "mainboard": mainboard_value,
+                "hw_cpu": hw_cpu_value,
+                "hw_ram": hw_ram_value,
+                "hw_gpu": hw_gpu_value,
+                "hw_sound": hw_sound_value
             }, fp=f, indent=4)
 
         page.controls = get_config_content()
         page.update()
 
     def open_config_page(e):
-        global profile_name_field, user_agent_field, screen_dropdown, timezone_dropdown, language_dropdown, proxy_dropdown, cookies_field, webgl_switch, vendor_field, cpu_threads_field, ram_field, is_touch_switch
+        global profile_name_field, user_agent_field, screen_dropdown, timezone_dropdown, language_dropdown, proxy_dropdown, cookies_field, webgl_switch, vendor_field, cpu_threads_field, ram_field, is_touch_switch, mainboard_dropdown, cpu_dropdown, ram_dropdown, gpu_dropdown, sound_dropdown
 
         n = 1
 
@@ -350,6 +398,21 @@ def main(page: ft.Page):
                 break
             else:
                 n += 1
+
+        hardware = load_hardware_data()
+        asus_boards = hardware.get("ASUS", {}).get("laptop", {}).get("mainboards", {})
+
+        def on_mainboard_change(e):
+            specs = asus_boards.get(mainboard_dropdown.value, {})
+            cpu_dropdown.options = [ft.dropdown.Option(v) for v in specs.get("cpu", [])]
+            ram_dropdown.options = [ft.dropdown.Option(v) for v in specs.get("ram", [])]
+            gpu_dropdown.options = [ft.dropdown.Option(v) for v in specs.get("gpu", [])]
+            sound_dropdown.options = [ft.dropdown.Option(v) for v in specs.get("sound", [])]
+            cpu_dropdown.value = None
+            ram_dropdown.value = None
+            gpu_dropdown.value = None
+            sound_dropdown.value = None
+            page.update()
 
         profile_name_field = ft.TextField(label="Tên hồ sơ", value=f"Profile {n}", border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
         user_agent_field = ft.TextField(hint_text="User Agent", value=USER_AGENT, expand=True, border_color=ft.Colors.WHITE, border_radius=20, content_padding=10)
@@ -396,6 +459,19 @@ def main(page: ft.Page):
             label="Cảm ứng",
             value=False,
         )
+
+        mainboard_dropdown = ft.Dropdown(
+            label="Mainboard",
+            width=250,
+            border_color=ft.Colors.WHITE,
+            border_radius=20,
+            options=[ft.dropdown.Option(b) for b in asus_boards.keys()],
+            on_change=on_mainboard_change,
+        )
+        cpu_dropdown = ft.Dropdown(label="CPU", width=200, border_color=ft.Colors.WHITE, border_radius=20)
+        ram_dropdown = ft.Dropdown(label="RAM", width=150, border_color=ft.Colors.WHITE, border_radius=20)
+        gpu_dropdown = ft.Dropdown(label="GPU", width=200, border_color=ft.Colors.WHITE, border_radius=20)
+        sound_dropdown = ft.Dropdown(label="Sound", width=200, border_color=ft.Colors.WHITE, border_radius=20)
 
         page.controls = [ft.Column(
             controls=[
@@ -449,11 +525,23 @@ def main(page: ft.Page):
                             is_touch_switch
                         ]
                     )
+                ),
+                ft.Container(
+                    padding=20,
+                    content=ft.Row(
+                        [
+                            mainboard_dropdown,
+                            cpu_dropdown,
+                            ram_dropdown,
+                            gpu_dropdown,
+                            sound_dropdown
+                        ]
+                    )
                 )
             ],
             spacing=5,
             alignment=ft.MainAxisAlignment.CENTER,
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER 
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER
         )]
 
         page.update()
