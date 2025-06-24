@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.spec
+build/
+dist/
+*.log
+*.db
+*.mmdb
+
+# env files
+ENV/
+venv/
+
+# JetBrains, VSCode
+.idea/
+.vscode/
